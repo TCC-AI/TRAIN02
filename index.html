@@ -4351,7 +4351,7 @@ function formatDateTime(date) {
 })();
 
     // ==================== 全域變數 ==================== 
-    let API_URL = 'https://script.google.com/macros/s/AKfycbx7VcSRVUu1r3D4-g8dPCZAzhwfFZLHVWsefwk9WgSd6FnP-UuKoAmDSiggfxxIBVZP/exec';
+    let API_URL = 'https://script.google.com/macros/s/AKfycbwvb7ukFnIle1sGeoPNTAjcJ3Nfj9Vbs7jaaH6PFKKFBGcMpgdiR1o8QT2tXhWqEqft/exec';
     let sessionToken = null;
     let currentUser = null;
     let currentCourse = null;
@@ -6040,18 +6040,23 @@ function displayPlayer() {
   document.getElementById('playerDeadline').textContent = currentCourse.deadline || '無期限';
   document.getElementById('playerCourseDesc').textContent = currentCourse.courseDesc || '暫無說明';
 
-  // ✅ 載入影片
-  const videoUrl = convertDriveUrl(currentCourse.videoUrl);
+  // ✅ 根據課程類型載入不同的播放器
+  const courseType = currentCourse.courseType || 'google_drive';
   
-  if (!videoUrl) {
-    console.error('❌ 影片連結轉換失敗');
-    showAlert('影片連結無效', 'error');
+  console.log('✅ 課程類型: ' + courseType);
+  
+  if (courseType === 'google_drive') {
+    // Google Drive 影片
+    loadGoogleDrivePlayer();
+  } else if (courseType === 'external_webpage') {
+    // 外部網頁
+    loadExternalWebpagePlayer();
+  } else {
+    console.error('❌ 未知的課程類型: ' + courseType);
+    showAlert('未知的課程類型', 'error');
     return;
   }
   
-  const videoIframe = document.getElementById('videoPlayer');
-  videoIframe.src = videoUrl;
-
   // ✅ 檢查是否有學習紀錄
   const btnStartExam = document.getElementById('btnStartExam');
   
@@ -6066,7 +6071,7 @@ function displayPlayer() {
   console.log('✅ 學習紀錄ID: ' + currentRecordId);
   
   videoStartTime = new Date();
-  watchedSeconds = 0;  // ✅ 重置為 0
+  watchedSeconds = 0;
 
   // ✅ 停止舊的計時器 (如果有的話)
   if (videoCheckInterval) {
@@ -6097,21 +6102,84 @@ function displayPlayer() {
     console.log('⚠️ videoDuration 不存在,使用預設值:', videoDuration, '秒');
   }
   
-// ✅ 設定全域變數
-currentVideoDuration = videoDuration;
+  // ✅ 設定全域變數
+  currentVideoDuration = videoDuration;
 
-console.log('✅ 最終影片長度:', currentVideoDuration, '秒 (' + Math.floor(currentVideoDuration / 60) + ' 分鐘)');
+  console.log('✅ 最終影片長度:', currentVideoDuration, '秒 (' + Math.floor(currentVideoDuration / 60) + ' 分鐘)');
 
-// ✅ 設定「開始播放」按鈕
-setupStartWatchingButton();
+  // ✅ 設定「開始播放」按鈕
+  setupStartWatchingButton();
 
-// ✅ 初始化時間資訊顯示
-updateTimeInfo();
+  // ✅ 初始化時間資訊顯示
+  updateTimeInfo();
 
-console.log('✅ displayPlayer 完成');
-
-
+  console.log('✅ displayPlayer 完成');
 }
+
+/**
+ * ✅ 新增：載入 Google Drive 播放器
+ */
+function loadGoogleDrivePlayer() {
+  console.log('=== loadGoogleDrivePlayer ===');
+  
+  const videoUrl = convertDriveUrl(currentCourse.videoUrl);
+  
+  if (!videoUrl) {
+    console.error('❌ 影片連結轉換失敗');
+    showAlert('影片連結無效', 'error');
+    return;
+  }
+  
+  const videoIframe = document.getElementById('videoPlayer');
+  videoIframe.src = videoUrl;
+  
+  console.log('✅ Google Drive 播放器載入完成');
+}
+
+/**
+ * ✅ 新增：載入外部網頁播放器
+ */
+function loadExternalWebpagePlayer() {
+  console.log('=== loadExternalWebpagePlayer ===');
+  
+  const videoUrl = currentCourse.videoUrl;
+  
+  if (!videoUrl) {
+    console.error('❌ 網頁連結為空');
+    showAlert('網頁連結無效', 'error');
+    return;
+  }
+  
+  const videoIframe = document.getElementById('videoPlayer');
+  
+  // ✅ 嘗試嵌入 iframe
+  videoIframe.src = videoUrl;
+  
+  // ✅ 監聽 iframe 載入錯誤
+  videoIframe.onerror = function() {
+    console.error('❌ iframe 載入失敗（可能被 X-Frame-Options 阻擋）');
+    
+    // ✅ 改用新視窗開啟
+    const confirmOpen = confirm('此網頁無法嵌入顯示，是否要在新視窗開啟？');
+    
+    if (confirmOpen) {
+      window.open(videoUrl, '_blank');
+      
+      // ✅ 提示使用者手動完成
+      showAlert('請在新視窗中完成學習，完成後點擊【開始測驗】', 'info');
+      
+      // ✅ 啟用測驗按鈕（手動完成模式）
+      const btnStartExam = document.getElementById('btnStartExam');
+      btnStartExam.disabled = false;
+      btnStartExam.textContent = '開始測驗';
+    } else {
+      backToCourses();
+    }
+  };
+  
+  console.log('✅ 外部網頁播放器載入完成');
+}
+
 
 /**
  * 設定「開始播放」按鈕
